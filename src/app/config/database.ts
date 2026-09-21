@@ -1,13 +1,5 @@
 import mongoose from "mongoose";
-
-const connectDB = async (): Promise<void> => {
-  const url = process.env.MONGODB_URI as string;
-  try {
-    await mongoose.connect(url);
-    console.log("Connected to MongoDB");
-  } catch (error) {
-    console.error("Error connecting to MongoDB:", error);
-  }
-};
-export default connectDB;
-
+export default async function connectDB(uri: string): Promise<void> {
+  mongoose.set("bufferCommands", false);
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000, maxPoolSize: 10 });
+}
