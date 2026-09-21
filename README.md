@@ -65,9 +65,9 @@ With either Google setting absent, Google login is disabled and email/password l
 
 ### LiveKit
 
-Create a LiveKit Cloud project or configure a server, then add its URL/key/secret. The token endpoint requires an active persisted meeting and authenticated session, derives identity/name from that user, and provisions/reuses the LiveKit room with capacity 7. If the service reports a different capacity it refuses to issue a token. Capacity is enforced by LiveKit, not merely stored in MongoDB or inferred from a headcount.
+Create a LiveKit Cloud project or configure a server, then add its URL/key/secret. The token endpoint requires an active persisted meeting and authenticated session, derives identity/name from that user, and provisions/reuses the LiveKit room with capacity 7. If the service reports a different capacity it refuses to issue a token. The limit is also embedded in join-token room configuration. Before issuing a token, Express queries LiveKit participants and returns 409 if seven other identities are already connected. Existing identities can reconnect. During Day-2 tests the configured LiveKit service admitted an eighth participant despite reporting the configured limit; the additional Express check handles full rooms, but simultaneous admissions still depend on LiveKit enforcing its configured limit.
 
-Tokens expire after 10 minutes and allow joining only the requested room, publishing media/data and subscribing; they do not grant room administration, creation or recording. Missing credentials or provisioning failures return 503. The API secret is never returned. Actual LiveKit connectivity/capacity has not been tested against a configured service yet.
+Tokens expire after 10 minutes and allow joining only the requested room, publishing media/data and subscribing; they do not grant room administration, creation or recording. Missing credentials or provisioning failures return 503. The API secret is never returned. Day-2 browser tests exercise actual LiveKit media, seven participants, and the Express full-room response using temporary rooms and an isolated MongoDB database.
 
 ## Endpoints
 
@@ -103,7 +103,7 @@ npm start
 
 Tests use a disposable MongoDB and real Express sessions/model operations. LiveKit room provisioning is mocked while its JWT is generated and cryptographically verified. Google consent redirect/state rejection are tested without contacting Google; successful Google authentication requires real credentials and manual verification.
 
-`npm run test:serve` is only the isolated browser-test fixture used by the client Playwright suite. It ignores real `.env` and must not be deployed.
+`npm run test:serve` is only the isolated browser-test fixture used by the client Playwright suite. By default it ignores real `.env`; `DAY2_LIVEKIT=1` opts into only its LiveKit settings for real media tests. The fixture must not be deployed.
 
 ## Repository hygiene
 
@@ -112,3 +112,22 @@ The existing repository already tracks `.env` and some `node_modules` files. The
 See [server delivery details](docs/DAY-1-DELIVERY.md) and the [client delivery report](../online-meeting-platform/docs/DAY-1-DELIVERY.md).
 
 Reference: [Express sessions](https://expressjs.com/en/resources/middleware/session/), [Passport OAuth state](https://www.passportjs.org/tutorials/google/state/), [LiveKit server SDK](https://docs.livekit.io/reference/server-sdk-js/).
+
+## Render deployment
+
+The build compiles `src/server.ts` into `dist/server.js` (`rootDir: ./src`, `outDir: dist`). Keep this output path aligned with `npm start` and `package.json` main. A rootDir of `./` instead emits `dist/src/server.js` and causes the reported missing `dist/server.js` deployment error on a clean build.
+
+For the separate `online-meeting-platform-server` GitHub repository:
+
+- Runtime: Node.
+- Root Directory: leave blank (package.json is already at repository root).
+- Branch: the branch containing the latest server changes.
+- Build Command: `npm ci --include=dev && npm run build`.
+- Start Command: `npm start`.
+- Health Check Path: `/health`.
+
+If deploying from a combined repository instead, set Root Directory to `online-meeting-platform-server`. Build/start commands are relative to that directory. Do not use `src` as the Render Root Directory.
+
+Set server variables in Render's Environment settings; do not commit `.env`. Use production HTTPS frontend/API origins, a WSS LiveKit URL, and the appropriate secure-cookie/proxy settings from the table above. TypeScript is a development dependency, so the build command explicitly installs development dependencies even with `NODE_ENV=production`. Render supplies PORT. After pushing the fix to the configured deployment branch, redeploy; the deployed build must include the corrected tsconfig.json. A local build proves the output layout, not successful deployment to your Render account.
+
+References: [Render Node deployment](https://render.com/docs/deploy-node-express-app), [Render service root/build/start settings](https://render.com/docs/your-first-deploy).
