@@ -28,7 +28,7 @@ before(async () => {
   await Promise.all([User.init(), Meeting.init()]);
   store = MongoStore.create({ mongoUrl: mongoUri });
   config = readConfig({ NODE_ENV: "test", MONGODB_URI: mongoUri, SESSION_SECRET: "test-session-secret-at-least-32-characters", FRONTEND_URL: origin, LIVEKIT_URL: "wss://livekit.example.test", LIVEKIT_API_KEY: "test-key", LIVEKIT_API_SECRET: "test-livekit-secret-at-least-32-characters" });
-  app = createApp(config, store, { async createRoom(options) { provisioned.push(options); return { maxParticipants: options.maxParticipants }; } });
+  app = createApp(config, store, { async createRoom(options) { provisioned.push(options); return { maxParticipants: options.maxParticipants }; }, async listParticipants() { return []; } });
 });
 after(async () => { await store?.close(); await mongoose.disconnect(); await database?.stop(); });
 async function csrf(agent: ReturnType<typeof request.agent>) {
@@ -64,6 +64,7 @@ test("unauthenticated, cross-origin, and CSRF requests fail closed", async () =>
   await request(app).get("/api/auth/me").set("Origin", "https://evil.example").expect(403);
   const agent = request.agent(app);
   assert.equal((await post(agent, "/api/meetings", {})).status, 401);
+  assert.equal((await post(agent, `/api/meetings/${randomUUID()}/token`, {})).status, 401);
   const tokenResponse = await agent.get("/api/auth/csrf").expect(200);
   const cookie = tokenResponse.headers["set-cookie"];
   // A new session was saved by the earlier csrf call; inspect a fresh agent's cookie.
@@ -110,8 +111,11 @@ test("register/login/create/invite/logout/login flow, ownership and token scopin
   assert.equal(claims.sub, guest.body.user.id); assert.equal(claims.name, "Participant");
   assert.equal(claims.video?.room, roomId); assert.equal(claims.video?.roomJoin, true);
   assert.equal(claims.video?.roomAdmin, false); assert.ok(claims.exp! - claims.nbf! <= 600);
+  assert.equal(claims.roomConfig?.maxParticipants, 7);
   assert.deepEqual(provisioned.at(-1)?.maxParticipants, 7);
   assert.equal((await post(participant, `/api/meetings/${roomId}/token`, { identity: hostId })).status, 400);
+  assert.equal((await post(participant, `/api/meetings/${roomId}/token`, { name: "Host", isHost: true })).status, 400);
+  assert.equal((await post(participant, "/api/meetings/invalid/token")).status, 400);
   assert.equal((await post(participant, `/api/meetings/${randomUUID()}/token`)).status, 404);
   await Meeting.updateOne({ roomId }, { status: "ended", endedAt: new Date() });
   await participant.get(`/api/meetings/${roomId}`).expect(410);
@@ -129,7 +133,19 @@ test("LiveKit missing configuration and mismatched capacity fail instead of issu
   const meeting = { roomId: randomUUID(), maxParticipants: 7 };
   const user = { id: "test-user", displayName: "Test", email: "test@example.com" };
   await assert.rejects(liveKitService({ ...config, livekit: undefined })(meeting, user), /not configured/);
-  await assert.rejects(liveKitService(config, { async createRoom() { return { maxParticipants: 0 }; } })(meeting, user), /unavailable/);
+  await assert.rejects(liveKitService(config, { async createRoom() { return { maxParticipants: 0 }; }, async listParticipants() { return []; } })(meeting, user), /unavailable/);
+});
+
+test("full LiveKit rooms reject new identities while allowing an existing identity to reconnect", async () => {
+  const meeting = { roomId: randomUUID(), maxParticipants: 7 };
+  const participants = Array.from({ length: 7 }, (_, index) => ({ identity: `participant-${index}` }));
+  const join = liveKitService(config, {
+    async createRoom() { return { maxParticipants: 7 }; },
+    async listParticipants() { return participants; },
+  });
+  await assert.rejects(join(meeting, { id: "eighth", displayName: "Eighth", email: "eighth@example.com" }), /meeting is full/);
+  const credentials = await join(meeting, { id: "participant-0", displayName: "Returning", email: "returning@example.com" });
+  assert.equal((await new TokenVerifier(config.livekit!.apiKey, config.livekit!.apiSecret).verify(credentials.token)).sub, "participant-0");
 });
 
 test("Google OAuth validates state and retains a safe meeting destination on failure", async () => {
