@@ -14,10 +14,10 @@ export function liveKitService(config: AppConfig, provisioner?: RoomProvisioner)
     try {
       const rooms = provisioner ?? new RoomServiceClient(url.replace(/^ws/, "http"), apiKey, apiSecret);
       const room = await rooms.createRoom({ name: meeting.roomId, maxParticipants: meeting.maxParticipants, emptyTimeout: 300 });
-      // Capacity is enforced by LiveKit, never a race-prone local headcount.
+      // Request LiveKit's admission limit and reject inconsistent configuration.
       if (room.maxParticipants !== meeting.maxParticipants) throw new Error("LiveKit room capacity does not match the persisted meeting.");
       // Give an authoritative full-room response before issuing a token. Keep the
-      // LiveKit limit as the admission guard for simultaneous join requests.
+      // LiveKit limit for simultaneous joins; the configured provider must honor it.
       const participants = await rooms.listParticipants(meeting.roomId);
       if (participants.length >= meeting.maxParticipants && !participants.some(participant => participant.identity === user.id)) {
         throw new HttpError(409, "This meeting is full (7 participants). Try again after someone leaves.");
