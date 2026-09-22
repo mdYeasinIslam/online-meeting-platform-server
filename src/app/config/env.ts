@@ -22,8 +22,14 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Invalid PORT.");
   const production = env.NODE_ENV === "production";
   if (production && (!env.FRONTEND_URL || !env.API_PUBLIC_URL)) throw new Error("Set FRONTEND_URL and API_PUBLIC_URL in production.");
-  const frontendOrigin = origin(env.FRONTEND_URL ?? "http://localhost:3000", "FRONTEND_URL");
-  const apiOrigin = origin(env.API_PUBLIC_URL ?? `http://localhost:${port}`, "API_PUBLIC_URL");
+  const frontendOrigin = origin(
+    env.FRONTEND_URL ?? "https://online-meeting-platform-rho.vercel.app",
+    "FRONTEND_URL",
+  );
+  const apiOrigin = origin(
+    env.API_PUBLIC_URL ?? `https://online-meeting-platform-server.onrender.com`,
+    "API_PUBLIC_URL",
+  );
   if (production && (!frontendOrigin.startsWith("https://") || !apiOrigin.startsWith("https://"))) throw new Error("Production origins must use HTTPS.");
   const cookieSameSite = env.COOKIE_SAME_SITE ?? "lax";
   if (!["lax", "strict", "none"].includes(cookieSameSite) || (cookieSameSite === "none" && !production)) throw new Error("COOKIE_SAME_SITE must be lax/strict, or none over production HTTPS.");
