@@ -8,8 +8,9 @@ import { authRoutes } from "./app/modules/auth/auth.routes.js";
 import { configureGoogle } from "./app/modules/auth/google.js";
 import { meetingRoutes } from "./app/modules/meeting/meeting.routes.js";
 import type { RoomProvisioner } from "./app/modules/livekit/livekit.service.js";
+import type { RoomTerminator } from "./app/modules/livekit/room-termination.js";
 import { errorHandler, HttpError } from "./app/shared/errors.js";
-export function createApp(config: AppConfig, store: Store, provisioner?: RoomProvisioner) {
+export function createApp(config: AppConfig, store: Store, provisioner?: RoomProvisioner, terminator?: RoomTerminator) {
   const app = express();
   app.disable("x-powered-by");
   if (config.trustProxyHops) app.set("trust proxy", config.trustProxyHops);
@@ -28,7 +29,7 @@ export function createApp(config: AppConfig, store: Store, provisioner?: RoomPro
   app.use(passport.initialize());
   app.use("/api", csrfProtection(config.frontendOrigin));
   app.use("/api/auth", authRoutes(config, passport));
-  app.use("/api/meetings", meetingRoutes(config, provisioner));
+  app.use("/api/meetings", meetingRoutes(config, provisioner, terminator));
   app.use((_request, _response, next) => next(new HttpError(404, "Endpoint not found.")));
   app.use(errorHandler);
   return app;

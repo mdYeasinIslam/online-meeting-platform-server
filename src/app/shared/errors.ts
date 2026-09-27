@@ -1,10 +1,10 @@
 import type { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
 export class HttpError extends Error {
-  constructor(public status: number, message: string) { super(message); }
+  constructor(public status: number, message: string, public code?: string, public details?: { canEnd?: boolean }) { super(message); }
 }
 export const errorHandler: ErrorRequestHandler = (error: unknown, _request, response, _next) => {
-  if (error instanceof HttpError) { response.status(error.status).json({ error: error.message }); return; }
+  if (error instanceof HttpError) { response.status(error.status).json({ error: error.message, ...(error.code ? { code: error.code } : {}), ...error.details }); return; }
   if (error instanceof ZodError) { response.status(400).json({ error: "Invalid request.", fields: error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message })) }); return; }
   const details = error as { code?: number; type?: string; name?: string };
   if (details?.code === 11000) { response.status(409).json({ error: "An account with that email or identity already exists." }); return; }

@@ -22,7 +22,20 @@ if (process.env.DAY2_LIVEKIT === "1") {
   config.livekit = readConfig({ ...environment, ...process.env, MONGODB_URI: mongoUri, SESSION_SECRET: config.sessionSecret, NODE_ENV: "test" }).livekit;
   if (!config.livekit) throw new Error("LiveKit configuration is required for the opt-in media tests.");
 }
-const server = createApp(config, store).listen(port, () => console.info("Isolated test API ready."));
+// Fault injection only at the external LiveKit boundary, only in this isolated test executable.
+const failedRooms = new Set<string>();
+const terminator = process.env.DAY42_TESTING === "1" && config.livekit ? {
+  async deleteRoom(roomId: string) {
+    const meeting = await Meeting.findOne({ roomId }).lean();
+    await new Promise(resolve => setTimeout(resolve, 700));
+    if (meeting?.title === "Retry deletion test" && !failedRooms.has(roomId)) {
+      failedRooms.add(roomId); throw new Error("Injected external provider failure");
+    }
+    const livekit = config.livekit!;
+    await new RoomServiceClient(livekit.url.replace(/^ws/, "http"), livekit.apiKey, livekit.apiSecret).deleteRoom(roomId);
+  },
+} : undefined;
+const server = createApp(config, store, undefined, terminator).listen(port, () => console.info("Isolated test API ready."));
 let closing = false;
 async function close() {
   if (closing) return; closing = true;

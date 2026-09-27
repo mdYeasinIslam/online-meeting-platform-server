@@ -12,7 +12,7 @@ export function liveKitService(config: AppConfig, provisioner?: RoomProvisioner)
     if (!config.livekit) throw new HttpError(503, "LiveKit is not configured. Ask the host to configure the server.");
     const { url, apiKey, apiSecret } = config.livekit;
     try {
-      const rooms = provisioner ?? new RoomServiceClient(url.replace(/^ws/, "http"), apiKey, apiSecret);
+      const rooms = provisioner ?? new RoomServiceClient(url.replace(/^ws/, "http"), apiKey, apiSecret, { requestTimeout: 8, failover: false });
       const room = await rooms.createRoom({ name: meeting.roomId, maxParticipants: meeting.maxParticipants, emptyTimeout: 300 });
       // Request LiveKit's admission limit and reject inconsistent configuration.
       if (room.maxParticipants !== meeting.maxParticipants) throw new Error("LiveKit room capacity does not match the persisted meeting.");
@@ -22,7 +22,7 @@ export function liveKitService(config: AppConfig, provisioner?: RoomProvisioner)
       if (participants.length >= meeting.maxParticipants && !participants.some(participant => participant.identity === user.id)) {
         throw new HttpError(409, "This meeting is full (7 participants). Try again after someone leaves.");
       }
-      const token = new AccessToken(apiKey, apiSecret, { identity: user.id, name: user.displayName, ttl: "10m" });
+      const token = new AccessToken(apiKey, apiSecret, { identity: user.id, name: user.displayName, ttl: "60s" });
       // Carry the same limit through join-time room creation/configuration as provisioning.
       token.roomConfig = new RoomConfiguration({ maxParticipants: meeting.maxParticipants, emptyTimeout: 300 });
       token.addGrant({ roomJoin: true, room: meeting.roomId, canPublish: true, canSubscribe: true, canPublishData: true, roomAdmin: false, roomCreate: false, roomRecord: false });
