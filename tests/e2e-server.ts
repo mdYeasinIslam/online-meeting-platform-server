@@ -9,18 +9,33 @@ import { createApp } from "../src/App.js";
 import { readConfig } from "../src/app/config/env.js";
 import { User } from "../src/app/modules/user/user.model.js";
 import { Meeting } from "../src/app/modules/meeting/meeting.model.js";
+const port = Number(process.env.E2E_API_PORT ?? "5000");
+if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Invalid isolated browser-test API port.");
 const systemBinary = process.env.MONGOMS_SYSTEM_BINARY || (existsSync("/usr/bin/mongod") ? "/usr/bin/mongod" : undefined);
 const database = await MongoMemoryServer.create({ binary: { systemBinary } });
 const mongoUri = database.getUri("browser_tests");
 await mongoose.connect(mongoUri); await Promise.all([User.init(), Meeting.init()]);
 const store = MongoStore.create({ mongoUrl: mongoUri });
-const config = readConfig({ NODE_ENV: "test", PORT: "5000", MONGODB_URI: mongoUri, SESSION_SECRET: "browser-tests-only-session-secret-123456", FRONTEND_URL: "http://localhost:3000" });
+const config = readConfig({ NODE_ENV: "test", PORT: String(port), MONGODB_URI: mongoUri, SESSION_SECRET: "browser-tests-only-session-secret-123456", FRONTEND_URL: "http://localhost:3000" });
 if (process.env.DAY2_LIVEKIT === "1") {
   const environment = parse(readFileSync(new URL("../.env", import.meta.url)));
   config.livekit = readConfig({ ...environment, ...process.env, MONGODB_URI: mongoUri, SESSION_SECRET: config.sessionSecret, NODE_ENV: "test" }).livekit;
   if (!config.livekit) throw new Error("LiveKit configuration is required for the opt-in media tests.");
 }
-const server = createApp(config, store).listen(5000, () => console.info("Isolated test API ready."));
+// Fault injection only at the external LiveKit boundary, only in this isolated test executable.
+const failedRooms = new Set<string>();
+const terminator = process.env.DAY42_TESTING === "1" && config.livekit ? {
+  async deleteRoom(roomId: string) {
+    const meeting = await Meeting.findOne({ roomId }).lean();
+    await new Promise(resolve => setTimeout(resolve, 700));
+    if (meeting?.title === "Retry deletion test" && !failedRooms.has(roomId)) {
+      failedRooms.add(roomId); throw new Error("Injected external provider failure");
+    }
+    const livekit = config.livekit!;
+    await new RoomServiceClient(livekit.url.replace(/^ws/, "http"), livekit.apiKey, livekit.apiSecret).deleteRoom(roomId);
+  },
+} : undefined;
+const server = createApp(config, store, undefined, terminator).listen(port, () => console.info("Isolated test API ready."));
 let closing = false;
 async function close() {
   if (closing) return; closing = true;
