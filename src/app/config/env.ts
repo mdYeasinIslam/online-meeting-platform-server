@@ -7,7 +7,12 @@ export interface AppConfig {
   apiOrigin: string;
   cookieSameSite: "lax" | "strict" | "none";
   trustProxyHops: number;
-  google?: { clientId: string; clientSecret: string; callbackURL: string };
+  google?: {
+    clientId: string;
+    clientSecret: string;
+    callbackURL: string;
+    proxy: boolean;
+  };
   livekit?: { url: string; apiKey: string; apiSecret: string };
 }
 function origin(value: string, name: string): string {
@@ -42,11 +47,23 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     livekit = { url: env.LIVEKIT_URL, apiKey: env.LIVEKIT_API_KEY, apiSecret: env.LIVEKIT_API_SECRET };
   }
   return {
-    port, production, mongoUri: env.MONGODB_URI, sessionSecret: env.SESSION_SECRET,
-    frontendOrigin, apiOrigin, cookieSameSite: cookieSameSite as AppConfig["cookieSameSite"], trustProxyHops, livekit,
-    google: env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? {
-      clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${apiOrigin}/api/auth/google/callback`,
-    } : undefined,
+    port,
+    production,
+    mongoUri: env.MONGODB_URI,
+    sessionSecret: env.SESSION_SECRET,
+    frontendOrigin,
+    apiOrigin,
+    cookieSameSite: cookieSameSite as AppConfig["cookieSameSite"],
+    trustProxyHops,
+    livekit,
+    google:
+      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+        ? {
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+            callbackURL: `${apiOrigin}/api/auth/google/callback`,
+            proxy: true,
+          }
+        : undefined,
   };
 }
