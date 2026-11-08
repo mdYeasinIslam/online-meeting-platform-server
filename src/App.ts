@@ -18,7 +18,9 @@ export function createApp(
 ) {
   const app = express();
   app.disable("x-powered-by");
-  if (config.trustProxyHops) app.set("trust proxy", config.trustProxyHops);
+  // if (config.trustProxyHops) app.set("trust proxy", config.trustProxyHops);
+  app.set("trust proxy", 1);
+
   app.use(helmet());
   // app.use(
   //   cors({
@@ -40,7 +42,6 @@ export function createApp(
       credentials: true,
     }),
   );
-  app.set("trust proxy", 1);
 
   app.use(express.json());
   app.get("/health", (_request, response) => {
