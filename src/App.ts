@@ -58,19 +58,19 @@ export function createApp(
       // store,
       resave: false,
       saveUninitialized: false,
-      // cookie: {
-      //   httpOnly: true,
-      //   secure: config.production,
-      //   sameSite: config.cookieSameSite,
-      //   maxAge: 7 * 24 * 60 * 60 * 1000,
-      //   path: "/",
-      // },
       cookie: {
         httpOnly: true,
-        secure: true, // true on Render (HTTPS)
-        sameSite: "none", // 'none' is mandatory across Vercel & Render
+        secure: config.production, // must evaluate to true on Render HTTPS
+        sameSite: config.production ? "none" : "lax", // must be "none" for cross-site
         maxAge: 7 * 24 * 60 * 60 * 1000,
+        // path: "/",
       },
+      // cookie: {
+      //   httpOnly: true,
+      //   secure: true, // true on Render (HTTPS)
+      //   sameSite: "none", // 'none' is mandatory across Vercel & Render
+      //   maxAge: 7 * 24 * 60 * 60 * 1000,
+      // },
       // cookie: {
       //   httpOnly: true,
       //   secure: true,
