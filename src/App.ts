@@ -20,25 +20,25 @@ export function createApp(
   app.disable("x-powered-by");
   if (config.trustProxyHops) app.set("trust proxy", config.trustProxyHops);
   app.use(helmet());
-  // app.use(
-  //   cors({
-  //     origin(origin, callback) {
-  //       if (!origin || origin === config.frontendOrigin) callback(null, true);
-  //       else callback(new HttpError(403, "Request origin is not allowed."));
-  //     },
-  //     credentials: true,
-  //     methods: ["GET", "POST", "OPTIONS"],
-  //     allowedHeaders: ["Content-Type", "X-CSRF-Token"],
-  //   }),
-  // );
   app.use(
     cors({
-      origin: [
-        "https://online-meeting-platform-rho.vercel.app",
-        "http://localhost:3000",
-      ],
+      origin(origin, callback) {
+        if (!origin || origin === config.frontendOrigin) callback(null, true);
+        else callback(new HttpError(403, "Request origin is not allowed."));
+      },
+      credentials: true,
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "X-CSRF-Token"],
     }),
   );
+  // app.use(
+  //   cors({
+  //     origin: [
+  //       "https://online-meeting-platform-rho.vercel.app",
+  //       "http://localhost:3000",
+  //     ],
+  //   }),
+  // );
   app.use(express.json());
   app.get("/health", (_request, response) => {
     response.json({ status: "ok" });
@@ -54,19 +54,19 @@ export function createApp(
       // store,
       resave: false,
       saveUninitialized: false,
-      // cookie: {
-      //   httpOnly: true,
-      //   secure: config.production,
-      //   sameSite: config.cookieSameSite,
-      //   maxAge: 7 * 24 * 60 * 60 * 1000,
-      //   path: "/",
-      // },
       cookie: {
         httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        maxAge: 24 * 60 * 60 * 1000,
+        secure: config.production,
+        sameSite: config.cookieSameSite,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: "/",
       },
+      // cookie: {
+      //   httpOnly: true,
+      //   secure: true,
+      //   sameSite: "none",
+      //   maxAge: 24 * 60 * 60 * 1000,
+      // },
     }),
   );
   const passport = configureGoogle(config);

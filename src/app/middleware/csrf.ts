@@ -7,8 +7,6 @@ export function csrfProtection(frontendOrigin: string): RequestHandler {
     if (request.get("origin") !== frontendOrigin) throw new HttpError(403, "Request origin is not allowed.");
     const supplied = request.get("x-csrf-token");
     const expected = request.session.csrfToken;
-    console.log("supplied csrf token:", supplied);
-    console.log("expected csrf token:", expected);
     if (!supplied || !expected || !/^[a-f0-9]{64}$/.test(supplied) || !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) throw new HttpError(403, "Your security token has expired. Please retry.");
     next();
   };

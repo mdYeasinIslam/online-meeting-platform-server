@@ -18,7 +18,7 @@ async function main() {
   await store.collectionP;
 
   const server = http.createServer(createApp(config, store));
-  server.listen(config.port, () => console.info(`API listening on port ${config.port}; Google ${config.google ? "enabled" : "not configured"}; LiveKit ${config.livekit ? "configured" : "not configured"}.`));
+  server.listen(config.port, () => console.info(`API is listening on port ${config.port}; Google ${config.google ? "enabled" : "not configured"}; LiveKit ${config.livekit ? "configured" : "not configured"}.`));
 
   let closing = false;
   const shutdown = () => {
