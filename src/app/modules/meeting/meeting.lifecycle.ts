@@ -24,7 +24,6 @@ export async function loadMeeting(roomId: string) {
     !(meeting.hostUserId instanceof Types.ObjectId) ||
     !Number.isInteger(meeting.maxParticipants) ||
     meeting.maxParticipants < 1 ||
-    // meeting.maxParticipants > 7 ||
     !(meeting.createdAt instanceof Date)
   ) {
     throw new HttpError(

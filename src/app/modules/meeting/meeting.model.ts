@@ -23,7 +23,7 @@ const meetingSchema = new Schema(
     },
     maxParticipants: {
       type: Number,
-      // default: 7,
+      default: 20,
       min: 1,
       // max: 7,
       required: true,

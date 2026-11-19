@@ -38,6 +38,7 @@ export function createApp(
       origin: [
         "https://online-meeting-platform-rho.vercel.app",
         "http://localhost:3000",
+        "http://192.168.10.186:3000",
       ],
       credentials: true,
     }),
