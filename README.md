@@ -115,7 +115,7 @@ Reference: [Express sessions](https://expressjs.com/en/resources/middleware/sess
 
 ## Render deployment
 
-The build compiles `src/server.ts` into `dist/server.js` (`rootDir: ./src`, `outDir: dist`). Keep this output path aligned with `npm start` and `package.json` main. A rootDir of `./` instead emits `dist/src/server.js` and causes the reported missing `dist/server.js` deployment error on a clean build.
+The configured build compiles `src/updated/serverCopy.ts` into `dist/updated/serverCopy.js` (`rootDir: ./src`, `outDir: dist`). Keep this output path aligned with `npm start` and `package.json` main. A rootDir of `./` instead emits `dist/src/updated/serverCopy.js` and causes a missing entrypoint on a clean deployment.
 
 For the separate `online-meeting-platform-server` GitHub repository:
 
